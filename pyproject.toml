@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "qa-database"
+version = "1.0.0"
+description = "QA Database Cross-Check Agent — /qa-database skill for Claude Code (read-only Postgres)"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+dependencies = [
+  "psycopg2-binary>=2.9",
+  "python-dotenv>=1.0",
+  "PyYAML>=6.0",
+]
+
+[project.scripts]
+workflow = "cli.agent:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["cli*", "modules*", "shared*"]
+exclude = ["tasks*", "config*", ".claude*"]
