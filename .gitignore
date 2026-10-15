@@ -1,6 +1,7 @@
 # Config — per-user credentials, never commit
 config/*
 !config/example/
+!config/qa-database-context.md
 
 # Task folders
 tasks/

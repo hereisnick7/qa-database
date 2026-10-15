@@ -7,8 +7,8 @@ description: >
   replacement for log-based root-cause investigation — usually reached via
   a `/qa-logs` handoff when logs alone can't resolve something a DB
   snapshot could, but callable directly for a quick current-state check.
-  Use when: "проверь в БД юзера X", "всё ещё висит в PENDING?", "сверь с
-  базой", "qa-database DEV-XXXX", "какой сейчас статус у X".
+  Use when: "check the DB for user X", "still stuck in PENDING?", "cross-check
+  with the database", "qa-database DEV-XXXX", "what's the current status of X".
 ---
 
 # /qa-database
@@ -20,8 +20,8 @@ question, or as the accepted follow-up from a `/qa-logs` escalation offer.
 ## Usage
 
 ```
-/qa-database "юзер 42, всё ещё в статусе PENDING по выводу?"     # free text
-/qa-database DEV-3102                                             # Jira key — agent reads the ticket
+/qa-database "user 42, is the withdrawal still PENDING?"     # free text
+/qa-database DEV-XXXX                                         # Jira key — agent reads the ticket
 ```
 
 Direct invocation skips the `/qa-logs` handoff shape — just give an entity id
@@ -58,7 +58,7 @@ the specific question to check."}
 {Handoff mode (from /qa-logs): "Handoff from a qa-logs-agent investigation.
 Entity: {entity}. Question to confirm/refute (current DB state): {question}."}
 
-Read config/qa-logs-context.md → ## Database first.
+Read config/qa-database-context.md in full first (## Database + ## Known Patterns).
 
 Then follow your normal Step 0-4 workflow: scope the question, locate the
 schema, query, interpret, verdict. Produce the full report in the standard
@@ -80,7 +80,7 @@ If the report has a `## 🌱 Schema Notes` section, show it to the user as-is
 and ask:
 
 > "Агент выучил кое-что новое про схему БД (не про баг — просто где что
-> лежит). Добавить в `config/qa-logs-context.md` → `## Database`? (да / нет)"
+> лежит). Добавить в `config/qa-database-context.md` → `## Database`? (да / нет)"
 
 On yes, append each note as a new row/line in that table (or a short bullet
 under it if it doesn't fit the table shape) — schema/navigation facts only,
@@ -91,8 +91,8 @@ session. No `## 🌱 Schema Notes` section → skip this step entirely.
 
 > "Завести баг в Jira по этому расследованию? (да / нет)"
 
-If yes, hand the finding to whatever ticket-creation flow your orchestrator
-has — this agent never files tickets itself, same as `/qa-logs` step 6.
+Hand off to whatever ticket-creation flow your orchestrator has — this
+agent never files tickets itself.
 
 ## Rules
 
@@ -101,10 +101,21 @@ has — this agent never files tickets itself, same as `/qa-logs` step 6.
 - DB is read-only — this skill never offers or implies a write/fix action
 - Seed Mode is schema-notes only, and opt-in per note: the agent may propose a
   table/column/join fact it had to discover the hard way; only the user's
-  explicit yes gets it appended to `config/qa-logs-context.md` → `## Database`.
-  It never proposes causal/domain claims — those stay a manual/`qa-logs-agent`
-  judgment call
+  explicit yes gets it appended to `config/qa-database-context.md` →
+  `## Database`. It never proposes causal/domain claims — those stay a
+  manual/`qa-logs-agent` judgment call
 - One `/qa-database` call = one cross-check (not a general DB browsing session)
+
+## Using this alongside /qa-logs
+
+`qa-database` ships as its own installable project (own `pyproject.toml`,
+own `config/db/.env`), independent of `qa-logs`. It works completely
+standalone. To get the `/qa-logs` → `qa-database` escalation handoff
+described in its `SKILL.md`, both projects' `.claude/agents/` and
+`.claude/skills/` need to be visible in the same Claude Code session — e.g.
+copy `.claude/agents/qa-database-agent.md` + `.claude/skills/qa-database/`
+(plus `modules/db/` and `config/qa-database-context.md`) into your `qa-logs`
+checkout, or both `.claude/` subtrees into one working directory.
 
 ## Output Contract
 

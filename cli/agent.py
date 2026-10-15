@@ -27,11 +27,11 @@ from modules.db.cli import run_command as db_run  # noqa: E402
 from modules.jira.cli import run_command as jira_run  # noqa: E402
 
 HELP = """
-  Postgres (read-only):
-    db-info                                — connectivity check + version
-    db-tables [--schema=public]             — explore schema
-    db-describe <table> [--schema=public]   — columns for a table
-    db-query "<SELECT ...>" [--limit=200]   — the actual check (SELECT/WITH/EXPLAIN/SHOW/TABLE only)
+  Database (read-only, Postgres):
+    db-info                               — connectivity check + version
+    db-tables [--schema=public]           — list tables
+    db-describe <table> [--schema=public] — column list for a table
+    db-query "<SELECT ...>" [--limit=200] [--account=]
 
   Jira:
     jira-task <KEY>                       — task details + comments

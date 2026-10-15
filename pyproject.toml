@@ -5,14 +5,18 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "qa-database"
 version = "1.0.0"
-description = "QA Database Cross-Check Agent — /qa-database skill for Claude Code (read-only Postgres)"
+description = "QA Database Cross-Check Agent — /qa-database skill for Claude Code (read-only Postgres, second-line to qa-logs)"
 requires-python = ">=3.9"
 license = { text = "MIT" }
 dependencies = [
-  "psycopg2-binary>=2.9",
+  "requests>=2.31",
   "python-dotenv>=1.0",
   "PyYAML>=6.0",
+  "psycopg2-binary>=2.9",
 ]
+
+[project.optional-dependencies]
+dev = ["pytest>=7.4", "requests-mock>=1.11"]
 
 [project.scripts]
 workflow = "cli.agent:main"

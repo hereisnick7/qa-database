@@ -9,7 +9,7 @@
 Логи отвечают на "что произошло и почему". Этот агент отвечает на другой вопрос — "что верно прямо сейчас": застрял ли энтити в статусе, существуют ли ещё дубли строк, что реально лежит в поле, которое логи не смогли объяснить.
 
 1. Принимает вопрос тремя способами: явный хэндофф от `/qa-logs` (эскалация из отчёта), свободный текст (энтити + конкретная проверяемая claim), или ключ Jira
-2. Смотрит схему БД (`config/qa-logs-context.md` → `## Database`, либо `db-tables`/`db-describe` вживую, если таблица не задокументирована)
+2. Смотрит схему БД (`config/qa-database-context.md` — таблицы + подтверждённые бизнес-правила, либо `db-tables`/`db-describe` вживую, если таблица не задокументирована)
 3. Делает один точечный `SELECT` — не exploration, а проверка конкретного факта
 4. Даёт вердикт: **Confirms** / **Refutes** / **Inconclusive** — привязанный к исходному вопросу
 5. Никогда не путает "текущее состояние" с "историческим фактом" — кроме audit/history таблиц (где у строки есть собственный timestamp), любое значение помечается как факт на момент запроса, не на момент инцидента
@@ -24,7 +24,7 @@
 
 ```
 /qa-database "юзер 42, всё ещё в статусе PENDING по выводу?"     # свободный текст
-/qa-database DEV-3102                                             # Jira-ключ — агент сам читает задачу
+/qa-database DEV-XXXX                                             # Jira-ключ — агент сам читает задачу
 ```
 
 Обычно вызывается не напрямую, а как предложенный follow-up после `/qa-logs`, когда отчёт агента логов помечает `escalate_db: yes` в футере — но можно звать и напрямую для быстрой сверки.
@@ -52,7 +52,7 @@
     qa-database/
       SKILL.md                ← скилл /qa-database (оркестратор)
 config/
-  qa-logs-context.md          ← та же база знаний, что и у qa-logs — секция ## Database (заполни под свою схему)
+  qa-database-context.md      ← справочник по таблицам/колонкам/энумам + Known Patterns (шаблон — заполни под свою схему)
 modules/
   db/
     client.py                 ← read-only Postgres клиент (client-side + session-level + timeout guard)
@@ -60,7 +60,7 @@ modules/
   jira/                       ← нужен только для режима "по Jira-ключу"
 ```
 
-Если уже используешь `/qa-logs` из отдельного репо — просто скопируй `.claude/agents/qa-database-agent.md` и `.claude/skills/qa-database/` в тот же проект вместо клонирования этого репо отдельно; оба агента читают один и тот же `config/qa-logs-context.md`.
+Если уже используешь [`/qa-logs`](https://github.com/hereisnick7/qa-logs) — можно не держать два чекаута: скопируй `.claude/agents/qa-database-agent.md`, `.claude/skills/qa-database/`, `modules/db/` и `config/qa-database-context.md` в проект qa-logs. Тогда в одной сессии Claude Code заработает эскалация `/qa-logs` → `qa-database` (отчёт qa-logs с `escalate_db: yes`).
 
 ---
 
@@ -101,11 +101,21 @@ DB_PASSWORD=сюда-вставить-пароль
 
 **Read-only гарантируется тремя независимыми способами:** клиент принимает только `SELECT`/`WITH`/`EXPLAIN`/`SHOW`/`TABLE` (`assert_read_only`), сама Postgres-сессия открывается с `default_transaction_read_only = on`, плюс `statement_timeout`. БД-юзер с `SELECT`-only грантами — дополнительный, не единственный уровень защиты.
 
-**Если БД не доступна напрямую с этой машины** — SSH-туннель через bastion (см. закомментированные `DB_SSH_*` переменные в `.env.example`).
+**Если БД не доступна напрямую с этой машины** — SSH-туннель через bastion: добавь `DB_SSH_HOST`/`DB_SSH_USER`/`DB_SSH_KEY`/`DB_REMOTE_HOST` в тот же файл, клиент сам поднимет туннель. Несколько окружений (dev/prod) — через `DB__DEV__*`/`DB__PROD__*` и `--account=<name>`. Полный список опций — в `config/example/db/.env.example`.
+
+#### Jira API token (опционально, для `/qa-database DEV-XXXX`)
+
+1. https://id.atlassian.com/manage-profile/security/api-tokens → **Create API token**
+2. Открой `config/jira/.env`:
+```
+JIRA_URL=https://your-org.atlassian.net
+JIRA_EMAIL=you@company.com
+JIRA_TOKEN=сюда-вставить-токен
+```
 
 ### Настройка базы знаний
 
-Открой `config/qa-logs-context.md` → секцию `## Database` и заполни под свою схему: таблицы, ключевые колонки, конвенция хранения timestamp (epoch vs native), конвенция хранения денег (minor units vs face value) — читай инструкции внутри секции, там объяснено что и зачем проверять на своих данных.
+Открой `config/qa-database-context.md` и заполни под свою схему: `## Database` — таблицы, ключевые колонки, какие таблицы current-state, а какие audit/history, конвенция хранения timestamp (epoch vs native), конвенция хранения денег (minor units vs face value); `## Known Patterns` — подтверждённые бизнес-правила, меняющие смысл результата запроса. Читай инструкции внутри файла — там объяснено, что и зачем проверять на своих данных.
 
 ### Запуск
 
@@ -127,6 +137,7 @@ claude
 | Версия | Что добавлено |
 |---|---|
 | v1.0 | Первый релиз: read-only Postgres cross-check как второй эшелон эскалации от `/qa-logs`; три независимых read-only гарантии; различение current-state vs audit/history таблиц; опциональные Schema Notes с подтверждением пользователя |
+| v1.0 (optimized) | Своя база знаний `config/qa-database-context.md` (раньше — общая секция в `qa-logs-context.md`), агент читает её целиком, включая `## Known Patterns`; голый id без проверяемого вопроса → `BLOCKED_NO_ENTITY`; сжатие промпта без потери правил; модель — sonnet; `requests` в зависимостях (нужен Jira-модулю), `pip install -e ".[dev]"` для тестов |
 
 ---
 
